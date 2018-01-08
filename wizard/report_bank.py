@@ -66,22 +66,26 @@ class ReportBank(models.TransientModel):
         sheet1.write(5, 8, "SALDOS", style1)
         line_sheet = 6
 
-        journals = AccountJournal.search([('currency_id', '!=', False),
-                                ('bank_id', '!=', False)], order='currency_id')
+        journals = AccountJournal.search([('type', '=', 'bank'),
+                                          ], order='currency_id')
         curr_id = total_in = total_out = total_i = total_f = 0
-        band = False
+        band = curr_name = False
         for journal in journals:
             if journal.currency_id.id != curr_id:
                 curr_id = journal.currency_id.id
                 if band:
                     line_sheet += 1
-                    name_c = 'TOTAL BANCOS MONEDA ' + journal.currency_id.name
+                    name_c = 'TOTAL BANCOS MONEDA ' + curr_name
                     sheet1.write(line_sheet, 1, name_c, style1)
                     sheet1.write(line_sheet, 5, total_in, style1)
                     sheet1.write(line_sheet, 7, total_out, style1)
                     sheet1.write(line_sheet, 2, total_i, style1)
                     sheet1.write(line_sheet, 8, total_f, style1)
-                    line_sheet += 1
+                    line_sheet += 2
+                if journal.currency_id:
+                    curr_name = journal.currency_id.name
+                else:
+                    curr_name = 'MX'
                 band = True
                 total_in = total_out = 0
             sheet1.write(line_sheet, 1, journal.name, style1)
@@ -104,7 +108,7 @@ class ReportBank(models.TransientModel):
                     ('date', '<=', self.date_end),
                     ('account_id', '=', journal.default_debit_account_id.id)])
             for line in lines:
-                sheet1.write(line_sheet, 1, line.account_id.code)
+                #sheet1.write(line_sheet, 1, line.account_id.code)
                 if line.credit > 0:
                     amount_f -= line.credit
                     sheet1.write(line_sheet, 7, line.credit)
@@ -128,12 +132,13 @@ class ReportBank(models.TransientModel):
                 line_sheet += 1
             total_f += amount_f
         line_sheet += 1
-        name_c = 'TOTAL BANCOS MONEDA ' + journal.currency_id.name
-        sheet1.write(line_sheet, 1, name_c, style1)
-        sheet1.write(line_sheet, 5, total_in, style1)
-        sheet1.write(line_sheet, 7, total_out, style1)
-        sheet1.write(line_sheet, 2, total_i, style1)
-        sheet1.write(line_sheet, 8, total_f, style1)
+        if journals:
+            name_c = 'TOTAL BANCOS MONEDA ' + curr_name
+            sheet1.write(line_sheet, 1, name_c, style1)
+            sheet1.write(line_sheet, 5, total_in, style1)
+            sheet1.write(line_sheet, 7, total_out, style1)
+            sheet1.write(line_sheet, 2, total_i, style1)
+            sheet1.write(line_sheet, 8, total_f, style1)
         line_sheet += 1
 
         book.save(xls_path)
